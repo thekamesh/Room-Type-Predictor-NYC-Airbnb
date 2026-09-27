@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Room Type Predictor · NYC Airbnb</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🏙️</text></svg>" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,500&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div class="skyline-bg" aria-hidden="true">
+  <svg id="skylineSvg" viewBox="0 0 1600 400" preserveAspectRatio="xMidYMax slice">
+    <!-- buildings injected by CSS/JS-generated windows -->
+  </svg>
+</div>
+
+<header class="site-header">
+  <div class="brand">
+    <span class="brand-mark">🏙️</span>
+    <span class="brand-name">Room Type Predictor</span>
+  </div>
+  <div class="brand-sub">NYC Airbnb listings</div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="hero-copy">
+      <h1>What kind of stay is this listing?</h1>
+      <p class="hero-lede">
+        Enter a listing's details below. A trained model looks at where it sits,
+        what it costs, and how it's been reviewed — then predicts whether guests
+        are booking an entire place, a private room, or a shared space.
+      </p>
+
+      <div class="stat-row">
+        <div class="stat">
+          <span class="stat-value" id="statBoroughs">5</span>
+          <span class="stat-label">boroughs covered</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="statNeighbourhoods">—</span>
+          <span class="stat-label">neighbourhoods loaded</span>
+        </div>
+        <div class="stat">
+          <span class="stat-value" id="statPredictions">0</span>
+          <span class="stat-label">predictions made this session</span>
+        </div>
+      </div>
+
+      <button class="link-btn" id="toggleSettings" type="button">
+        Connection settings
+        <svg width="12" height="12" viewBox="0 0 12 12"><path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </button>
+      <div class="settings-panel" id="settingsPanel" hidden>
+        <label for="apiBase">FastAPI server URL</label>
+        <input type="text" id="apiBase" value="http://127.0.0.1:8000" spellcheck="false" />
+        <p class="settings-hint">This should match where <code>uvicorn</code> is serving your app. Saved automatically for next time.</p>
+      </div>
+    </div>
+
+    <form class="listing-form" id="listingForm" novalidate>
+      <div class="form-head">
+        <h2>Listing details</h2>
+        <button type="button" class="ghost-btn" id="fillSample">Fill sample listing</button>
+      </div>
+
+      <fieldset>
+        <legend>Location</legend>
+        <div class="field-grid">
+          <div class="field">
+            <label for="neighbourhood_group">Borough</label>
+            <select id="neighbourhood_group" required></select>
+          </div>
+          <div class="field">
+            <label for="neighbourhood">Neighbourhood</label>
+            <select id="neighbourhood" required></select>
+          </div>
+          <div class="field">
+            <label for="latitude">Latitude</label>
+            <input type="number" id="latitude" step="0.000001" min="-90" max="90" placeholder="40.7128" required />
+          </div>
+          <div class="field">
+            <label for="longitude">Longitude</label>
+            <input type="number" id="longitude" step="0.000001" min="-180" max="180" placeholder="-74.0060" required />
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Pricing &amp; stay</legend>
+        <div class="field-grid">
+          <div class="field">
+            <label for="price">Price per night ($)</label>
+            <input type="number" id="price" step="1" min="1" placeholder="150" required />
+          </div>
+          <div class="field">
+            <label for="minimum_nights">Minimum nights</label>
+            <input type="number" id="minimum_nights" step="1" min="1" max="365" placeholder="3" required />
+          </div>
+          <div class="field">
+            <label for="availability_365">Available days / year</label>
+            <input type="number" id="availability_365" step="1" min="0" max="365" placeholder="180" required />
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Reviews &amp; host</legend>
+        <div class="field-grid">
+          <div class="field">
+            <label for="number_of_reviews">Total reviews</label>
+            <input type="number" id="number_of_reviews" step="1" min="0" placeholder="24" required />
+          </div>
+          <div class="field">
+            <label for="reviews_per_month">Reviews per month</label>
+            <input type="number" id="reviews_per_month" step="0.01" min="0" placeholder="1.2" required />
+          </div>
+          <div class="field">
+            <label for="calculated_host_listings_count">Host's total listings</label>
+            <input type="number" id="calculated_host_listings_count" step="1" min="0" placeholder="1" required />
+          </div>
+        </div>
+      </fieldset>
+
+      <div class="form-error" id="formError" hidden></div>
+
+      <button type="submit" class="predict-btn" id="predictBtn">
+        <span class="btn-label">Predict room type</span>
+        <span class="btn-loader" aria-hidden="true"></span>
+      </button>
+    </form>
+  </section>
+
+  <section class="results" id="results" hidden>
+    <div class="results-head">
+      <h2>Prediction</h2>
+      <p id="resultsLede"></p>
+    </div>
+
+    <div class="skyline-chart" id="skylineChart" aria-live="polite"></div>
+
+    <div class="results-foot">
+      <button class="ghost-btn" id="predictAnother">Try another listing</button>
+      <span class="raw-toggle" id="rawToggle">View raw response</span>
+    </div>
+    <pre class="raw-response" id="rawResponse" hidden></pre>
+  </section>
+
+  <section class="results error-state" id="resultsError" hidden>
+    <h2>Couldn't get a prediction</h2>
+    <p id="resultsErrorText"></p>
+    <button class="ghost-btn" id="dismissError">Back to form</button>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>Built on your FastAPI <code>/predict</code> endpoint. Nothing here is stored — this page just talks to your server.</p>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
