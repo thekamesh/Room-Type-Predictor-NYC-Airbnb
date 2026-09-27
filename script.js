@@ -345,7 +345,7 @@
       return;
     }
 
-    const base = els.apiBase.value.trim().replace(/\/+$/, "");
+    const base = "https://room-type-predictor-nyc-airbnb-gpci.onrender.com";
     setLoading(true);
 
     try {
